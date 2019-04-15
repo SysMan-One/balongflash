@@ -1,5 +1,3 @@
-// 
-
 // Процедуры обработки цифровых подписей
 // 
 #include <stdio.h>
@@ -17,43 +15,41 @@
 #else
 #include <windows.h>
 #include "getopt.h"
-#include "printf.h"
 #include "buildno.h"
 #endif
 
-#include "hdlcio.h"
-#include "ptable.h"
-#include "flasher.h"
-#include "util.h"
-#include "zlib.h"
+#include	"hdlcio.h"
+#include	"ptable.h"
+#include	"flasher.h"
+#include	"util.h"
+#include	"zlib.h"
 
 // таблица параметров ключа -g
-
-struct {
-  uint8_t type;
-  uint32_t len;
-  char* descr;
+struct	{
+	char	type;
+	int	len;
+	char	*descr;
 } signbase[] = {
-  {1,2958,"Основная прошивка"},
-  {1,2694,"Прошивка E3372s-stick"},
-  {2,1110,"Вебинтерфейс+ISO для HLINK-модема"},
-  {6,1110,"Вебинтерфейс+ISO для HLINK-модема"},
-  {2,846,"ISO (dashboard) для stick-модема"},
-  {7,3750,"Прошивка+ISO+вебинтерфейс"},
+	  {1, 2958, "Основная прошивка"},
+	  {1, 2694, "Прошивка E3372s-stick"},
+	  {2, 1110, "Вебинтерфейс + ISO для HLINK-модема"},
+	  {6, 1110, "Вебинтерфейс + ISO для HLINK-модема"},
+	  {2, 846, "ISO (dashboard) для stick-модема"},
+	  {7, 3750, "Прошивка+ISO + вебинтерфейс"},
 };
 
 #define signbaselen 6
 
 // таблица типов подписей
 char* fwtypes[]={
-"UNKNOWN",        // 0
-"ONLY_FW",        // 1
-"ONLY_ISO",       // 2
-"FW_ISO",         // 3
-"ONLY_WEBUI",     // 4
-"FW_WEBUI",       // 5
-"ISO_WEBUI",      // 6
-"FW_ISO_WEBUI"    // 7
+	"UNKNOWN",        // 0
+	"ONLY_FW",        // 1
+	"ONLY_ISO",       // 2
+	"FW_ISO",         // 3
+	"ONLY_WEBUI",     // 4
+	"FW_WEBUI",       // 5
+	"ISO_WEBUI",      // 6
+	"FW_ISO_WEBUI"    // 7
 };  
 
 
@@ -70,180 +66,209 @@ extern int dflag;
 uint32_t signtype; // тип прошивки
 uint32_t signlen;  // длина подписи
 
-int32_t serach_sign();
+int32_t	search_sign();
 
 // Хеш открытого ключа для ^signver
-char signver_hash[100]="778A8D175E602B7B779D9E05C330B5279B0661BF2EED99A20445B366D63DD697";
+char signver_hash[100] = "778A8D175E602B7B779D9E05C330B5279B0661BF2EED99A20445B366D63DD697";
 
 //****************************************************
 //* Получение описания типа прошивки по коду
 //****************************************************
-char* fw_description(uint8_t code) {
-  
-return fwtypes[code&0x7];  
+char* fw_description	(uint8_t code) 
+{
+	return fwtypes[code&0x7];  
 }
 
 //****************************************************
 //* Получение списка типов прошивок
 //****************************************************
-void dlist() {
-  
+void	dlist	(void) 
+{
 int i;
 
-printf("\n #  Описание\n--------------------------------------");
-for(i=1;i<8;i++) {
-  printf("\n %i  %s",i,fw_description(i));
-}
-printf("\n\n");
-exit(0);
+	fprintf(stdout, "#  Описание\n--------------------------------------");
+	for( i=1; i < 8; i++) 
+		fprintf(stdout, "%i  %s",i,fw_description(i));
+
+	fprintf(stdout, "\n\n");
+	exit(0);
 }
 
 //***************************************************
 //* Обработка параметров ключа -d
 //***************************************************
-void dparm(char* sparm) {
+void dparm(char* sparm) 
+{
   
-if (dflag != 0) {
-  printf("\n Дублирующийся ключ -d\n\n");
-  exit(-1);
-}  
+	if (dflag != 0) 
+		{
+	fprintf(stdout, "Дублирующийся ключ -d\n\n");
+	exit(-1);
+	}  
 
-if (sparm[0] == 'l') {
-  dlist();
-  exit(0);
-}  
-sscanf(sparm,"%x",&dload_id);
-if ((dload_id == 0) || (dload_id >7)) {
-  printf("\n Неправильное значение ключа -d\n\n");
-  exit(-1);
-}
-dflag=1;
+	if ( sparm[0] == 'l') 
+		{
+		dlist();
+		exit(0);
+		}  
+
+	sscanf(sparm, "%x", &dload_id);
+
+	if ( (!dload_id) || (dload_id > 7) ) 
+		{
+		fprintf(stdout, "Неправильное значение ключа -d\n\n");
+		exit(-1);
+		}
+
+	dflag=1;
 }
 
 
 //****************************************************
 //* Получение списка параметров ключа -g
 //****************************************************
-void glist() {
-  
+void glist() 
+{
 int i;
-printf("\n #  длина  тип описание \n--------------------------------------");
-for (i=0; i<signbaselen; i++) {
-  printf("\n%1i  %5i  %2i   %s",i,signbase[i].len,signbase[i].type,signbase[i].descr);
-}
-printf("\n\n Также можно указать произвольные параметры подписи в формате:\n  -g *,type,len\n\n");
-exit(0);
+
+	fprintf(stdout, "#  длина  тип описание \n--------------------------------------");
+
+	for (i = 0; i < signbaselen; i++) 
+		fprintf(stdout, "\n%1i  %5i  %2i   %s", i, signbase[i].len, signbase[i].type, signbase[i].descr);
+
+	fprintf(stdout, "\n\n Также можно указать произвольные параметры подписи в формате:\n  -g *,type,len\n\n");
+	exit(0);
 }
 
 //***************************************************
 //* Обработка параметров ключа -g
 //***************************************************
-void gparm(char* sparm) {
-  
+void gparm(char* sparm) 
+{
 int index;  
-char* sptr;
-char parm[100];
+char* sptr, parm[100];
 
+	if (gflag != 0) 
+		{
+		fprintf(stdout, "Дублирующийся ключ -g\n\n");
+		exit(-1);
+		}  
 
-if (gflag != 0) {
-  printf("\n Дублирующийся ключ -g\n\n");
-  exit(-1);
-}  
+	strcpy(parm, sparm); // локальная копия параметров
 
-strcpy(parm,sparm); // локальная копия параметров
+	if (parm[0] == 'l') 
+		{
+		glist();
+		exit(0);
+		}  
 
-if (parm[0] == 'l') {
-  glist();
-  exit(0);
-}  
+	if (parm[0] == 'd') 
+		{
+		// запрет автоопределения подписи
+		gflag = -1;
+		return;
+		} 
 
-if (parm[0] == 'd') {
-  // запрет автоопределения подписи
-  gflag = -1;
-  return;
-} 
+	if ( !strncmp(parm, "*,", 2) ) 
+		{
+		// произвольные параметры
+		// выделяем длину
+		if ( !(sptr = strrchr(parm,',')) )
+			goto perror;
 
-if (strncmp(parm,"*,",2) == 0) {
-  // произвольные параметры
-  // выделяем длину
-  sptr=strrchr(parm,',');
-  if (sptr == 0) goto perror;
-  signlen=atoi(sptr+1);
-  *sptr=0;
-  // выделяем тип раздела
-  sptr=strrchr(parm,',');
-  if (sptr == 0) goto perror;
-  signtype=atoi(sptr+1);
-  if (fw_description(signtype) == 0) {
-    printf("\n Ключ -g: неизвестный тип прошивки - %i\n",signtype);
-    exit(-1);
-  }  
-}
-else {  
-  index=atoi(parm);
-  if (index >= signbaselen) goto perror;
-  signlen=signbase[index].len;
-  signtype=signbase[index].type;
-}
+		signlen = atoi(sptr + 1);
+		*sptr = '\0';
 
-gflag=1;
-// printf("\nstr - %s",signver);
-return;
+		// выделяем тип раздела
+		if ( !(sptr = strrchr(parm, ',')) )
+			goto perror;
+
+		signtype = atoi(sptr + 1);
+
+		if ( fw_description(signtype) == 0 ) 
+			{
+			fprintf(stdout, "Ключ -g: неизвестный тип прошивки - %i\n", signtype);
+			exit(-1);
+			}  
+		}
+	else    {  
+		if ( (index = atoi(parm)) >= signbaselen ) 
+			goto perror;
+
+		signlen = signbase[index].len;
+		signtype = signbase[index].type;
+		}
+
+	gflag = 1;
+	// fprintf(stdout, "\nstr - %s",signver);
+	return;
 
 perror:
- printf("\n Ошибка в параметрах ключа -g\n");
- exit(-1);
+	fprintf(stdout, "Ошибка в параметрах ключа -g\n");
+	exit(-1);
 } 
   
 
 //***************************************************
 //* Отправка цифровой подписи
 //***************************************************
-void send_signver() {
-  
+void	send_signver	(void) 
+{
 uint32_t res;
 // ответ на ^signver
-unsigned char SVrsp[]={0x0d, 0x0a, 0x30, 0x0d, 0x0a, 0x0d, 0x0a, 0x4f, 0x4b, 0x0d, 0x0a};
-uint8_t replybuf[200];
+char SVrsp[]={0x0d, 0x0a, 0x30, 0x0d, 0x0a, 0x0d, 0x0a, 0x4f, 0x4b, 0x0d, 0x0a}, replybuf[200];
   
-if (gflag == 0) {  
-  // автоопределение цифровой подписи
-  signtype=dload_id&0x7;
-  signlen=serach_sign();
-  if (signlen == -1) return; // подпись в файле не найдена
-}
+	if (gflag == 0) 
+		{  
+		// автоопределение цифровой подписи
+		signtype=dload_id&0x7;
+		signlen=search_sign();
 
-printf("\n Режим цифровой подписи: %s (%i байт)",fw_description(signtype),signlen);
-sprintf(signver,"^SIGNVER=%i,0,%s,%i",signtype,signver_hash,signlen);
-res=atcmd(signver,replybuf);
-if ( (res<sizeof(SVrsp)) || (memcmp(replybuf,SVrsp,sizeof(SVrsp)) != 0) ) {
-   printf("\n ! Ошибка проверки цифровой сигнатуры - %02x\n",replybuf[2]);
-   exit(-2);
-}
+		if (signlen == -1) 
+			return; // подпись в файле не найдена
+		}
+
+	fprintf(stdout, "Режим цифровой подписи: %s (%i байт)", fw_description(signtype), signlen);
+	sprintf(signver, "^SIGNVER=%i,0,%s,%i", signtype, signver_hash, signlen);
+
+	res = atcmd(signver,replybuf);
+
+	if ( (res<sizeof(SVrsp)) || (memcmp(replybuf,SVrsp,sizeof(SVrsp))) ) 
+		{
+		fprintf(stdout, "! Ошибка проверки цифровой сигнатуры - %02x\n",replybuf[2]);
+		exit(-2);
+		}
 }
 
 //***************************************************
 //* Поиск цифровой подписи в прошивке
 //***************************************************
-int32_t serach_sign() {
-
-int i,j;
+int32_t	search_sign	(void) 
+{
+int	i,j;
 uint32_t pt;
 uint32_t signsize;
 
-for (i=0;i<2;i++) {
-  if (i == npart) break;
-  pt=*((uint32_t*)&ptable[i].pimage[ptable[i].hd.psize-4]);
-  if (pt == 0xffaaaffa) { 
-    // подпись найдена
-    signsize=*((uint32_t*)&ptable[i].pimage[ptable[i].hd.psize-12]);
-    // выделяем хеш открытого ключа
-    for(j=0;j<32;j++) {
-     sprintf(signver_hash+2*j,"%02X",ptable[i].pimage[ptable[i].hd.psize-signsize+6+j]);
-    }
-    return signsize;
-  }
-}
-// не найдена
-return -1;
+	for (i = 0; i < 2; i++) 
+		{
+		if (i == npart) 
+			break;
+
+		pt = *((uint32_t*)&ptable[i].pimage[ptable[i].hd.psize - 4]);
+
+		if ( pt == 0xffaaaffa ) 
+			{ 
+			// подпись найдена
+			signsize=*((uint32_t*)&ptable[i].pimage[ptable[i].hd.psize-12]);
+
+			// выделяем хеш открытого ключа
+			for( j = 0 ; j < 32; j++ )  
+				sprintf(signver_hash + 2*j, "%02X", ptable[i].pimage[ptable[i].hd.psize-signsize + 6 + j]);
+
+			return signsize;
+			}
+		}
+
+	// не найдена
+	return -1;
 }

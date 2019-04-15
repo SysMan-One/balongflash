@@ -16,7 +16,6 @@
 #else
 #include <windows.h>
 #include "getopt.h"
-#include "printf.h"
 #include "buildno.h"
 #endif
 
@@ -31,27 +30,44 @@
 //* Дамп области памяти *
 //***********************
 
-void dump(char buffer[],int len,long base) {
-unsigned int i,j;
-char ch;
+void	dump	(
+		char *buffer,
+		int	len,
+		long	base
+		) 
+{
+int	i,j;
+char	ch;
 
-for (i=0;i<len;i+=16) {
-  printf("%08lx: ",(unsigned long)(base+i));
-  for (j=0;j<16;j++){
-   if ((i+j) < len) printf("%02x ",buffer[i+j]&0xff);
-   else printf("   ");
-  }
-  printf(" *");
-  for (j=0;j<16;j++) {
-   if ((i+j) < len) {
-    ch=buffer[i+j];
-    if ((ch < 0x20)|(ch > 0x80)) ch='.';
-    putchar(ch);
-   }
-   else putchar(' ');
-  }
-  printf("*\n");
-}
+	for (i=0;i<len;i+=16) 
+		{
+		fprintf(stdout, "%08lx: ",(unsigned long)(base+i));
+
+		for (j=0;j<16;j++)
+			{
+			if ((i+j) < len) 
+				fprintf(stdout, "%02x ",buffer[i+j]&0xff);
+			else    fprintf(stdout, "   ");
+			}
+
+		fprintf(stdout, " *");
+
+		for (j=0;j<16;j++) 
+			{
+			if ((i+j) < len) 
+				{
+				ch=buffer[i+j];
+
+				if ((ch < 0x20)|(ch > 0x80)) 
+					ch='.';
+
+				putchar(ch);
+				}
+			else    putchar(' ');
+			}
+
+		fprintf(stdout, "*\n");
+		}
 }
 
 
@@ -120,7 +136,7 @@ if (strncmp(replybuf+2,"2.0",3) == 0) return 1;
 for (i=2;i<res;i++) {
   if (replybuf[i] == 0x0d) replybuf[i]=0;
 }  
-printf("\n! Неправильная версия монитора прошивки - [%i]%s\n",res,replybuf+2);
+fprintf(stdout, "\n! Неправильная версия монитора прошивки - [%i]%s\n",res,replybuf+2);
 // dump(replybuf,res,0);
 return -1;
 }
@@ -128,30 +144,35 @@ return -1;
 //****************************************************
 //*------- Режим разрезания файла прошивки
 //****************************************************
-void fwsplit(uint32_t sflag) {
- 
-uint32_t i;
+void fwsplit	(uint32_t sflag) 
+{
+int	i;
 FILE* out;
-uint8_t filename[200];
+uint8_t filename[200] = {0};
 
-printf("\n Выделение разделов из файла прошивки:\n\n ## Смещение  Размер   Имя\n-------------------------------------");
-for (i=0;i<npart;i++) {  
-   printf("\n %02i %08x %8i  %s",i,ptable[i].offset,ptable[i].hd.psize,ptable[i].pname); 
-   // формируем имя файла
-   sprintf(filename,"%02i-%08x-%s.%s",i,ptable[i].hd.code,ptable[i].pname,(sflag?"fw":"bin"));
-   out=fopen(filename,"wb");
+	fprintf(stdout, "Выделение разделов из файла прошивки:\n\n ## Смещение  Размер   Имя\n-------------------------------------");
+
+	for (i = 0; i < npart; i++) 
+		{  
+		fprintf(stdout, "%02i %08x %8i  %s", i, ptable[i].offset, ptable[i].hd.psize, ptable[i].pname); 
+
+		// формируем имя файла
+		sprintf(filename, "%02i-%08x-%s.%s", i, ptable[i].hd.code, ptable[i].pname, (sflag ? "fw" : "bin") );
+		out = fopen(filename,"wb");
    
-   if(sflag) {
-     // запись заголовка
-     fwrite(&ptable[i].hd,1,sizeof(struct pheader),out);   // фиксированный заголовок
-     fwrite((void*)ptable[i].csumblock,1,ptable[i].hd.hdsize-sizeof(struct pheader),out); // блок контрольных сумм
-   }
-   // запись тела
-   fwrite(ptable[i].pimage,ptable[i].hd.psize,1,out);
-   fclose(out);
-}
-printf("\n");
-return;
+		if(sflag) 
+			{
+			// запись заголовка
+			fwrite(&ptable[i].hd, 1, sizeof(struct pheader), out);   // фиксированный заголовок
+			fwrite((void*)ptable[i].csumblock, 1, ptable[i].hd.hdsize-sizeof(struct pheader), out); // блок контрольных сумм
+			}
+
+		// запись тела
+		fwrite(ptable[i].pimage, ptable[i].hd.psize, 1, out);
+		fclose(out);
+		}
+
+	fprintf(stdout, "\n");
 }
 
 
@@ -159,34 +180,35 @@ return;
 //****************************************************
 //* Вход в HDLC-режим
 //****************************************************
-void enter_hdlc() {
-
+void enter_hdlc	(void) 
+{
 uint32_t res;  
-unsigned char OKrsp[]={0x0d, 0x0a, 0x4f, 0x4b, 0x0d, 0x0a};
-uint8_t replybuf[100]; 
+char OKrsp[] = {0x0d, 0x0a, 0x4f, 0x4b, 0x0d, 0x0a}, replybuf[100]; 
 
-usleep(100000);
+	usleep(100000);
 
-res=atcmd("^DATAMODE",replybuf);
-if (res != 6) {
-  printf("\n Неправильная длина ответа на ^DATAMODE");
-  exit(-2);
-}  
-if (memcmp(replybuf,OKrsp,6) != 0) {
-  printf("\n Команда ^DATAMODE отвергнута, возможно требуется режим цифровой подписи\n");
-  exit(-2);
-}  
+	res = atcmd("^DATAMODE",replybuf);
+	if ( res != 6 ) 
+		{
+		fprintf(stdout, "Неправильная длина ответа на ^DATAMODE");
+		exit(-2);
+		}  
+
+	if ( memcmp(replybuf,OKrsp,6) ) 
+		{
+		fprintf(stdout, "Команда ^DATAMODE отвергнута, возможно требуется режим цифровой подписи\n");
+		exit(-2);
+		}  
 }
 
 //****************************************************
 //* Выход из HDLC-режима
 //****************************************************
-void leave_hdlc() {
-
-uint8_t replybuf[100]; 
-unsigned char cmddone[7]={0x1};           // команда выхода из HDLC
+void	leave_hdlc (void) 
+{
+char	replybuf[100], cmddone[7] = {0x1};           // команда выхода из HDLC
   
-send_cmd(cmddone,1,replybuf);
+	send_cmd(cmddone, 1, replybuf);
 }
 
 
@@ -194,26 +216,30 @@ send_cmd(cmddone,1,replybuf);
 //*  Получение версии протокол прошивки
 //****************************************************
 
-void protocol_version() {
+void protocol_version() 
+{
+char	replybuf[100], cmdver[7]={0x0c};           // команда запроса версии протокола
+int	iolen, i;  
   
-uint8_t replybuf[100]; 
-uint32_t iolen,i;  
-unsigned char cmdver[7]={0x0c};           // команда запроса версии протокола
+	if ( !(iolen = send_cmd(cmdver,1,replybuf)) )
+		{
+		fprintf(stdout, "Нет ответа от модема в HDLC-режиме\n");
+		exit(-2);
+		}  
+
+	if ( replybuf[0] == 0x7e ) 
+		memcpy(replybuf, replybuf + 1, iolen - 1);
+
+	if ( replybuf[0] != 0x0d )
+		{
+		fprintf(stdout, "Ошибка получения версии протокола\n");
+		exit(-2);
+		}  
   
-iolen=send_cmd(cmdver,1,replybuf);
-if (iolen == 0) {
-  printf("\n Нет ответа от модема в HDLC-режиме\n");
-  exit(-2);
-}  
-if (replybuf[0] == 0x7e) memcpy(replybuf,replybuf+1,iolen-1);
-if (replybuf[0] != 0x0d) {
-  printf("\n Ошибка получения версии протокола\n");
-  exit(-2);
-}  
-  
-i=replybuf[1];
-replybuf[2+i]=0;
-printf("\n Версия протокола: %s",replybuf+2);
+	i = replybuf[1];
+	replybuf[2 + i] = '\0';
+
+	fprintf(stdout, "Версия протокола: %s", replybuf + 2);
 }
 
 
@@ -221,88 +247,89 @@ printf("\n Версия протокола: %s",replybuf+2);
 //****************************************************
 //*  Перезагрузка модема
 //****************************************************
-void restart_modem() {
+void restart_modem() 
+{
+char replybuf[100], cmd_reset[7]= {0xa};           // команда выхода из HDLC
 
-unsigned char cmd_reset[7]={0xa};           // команда выхода из HDLC
-uint8_t replybuf[100]; 
-
-printf("\n Перезагрузка модема...\n");
-send_cmd(cmd_reset,1,replybuf);
-atcmd("^RESET",replybuf);
+	fprintf(stdout, "Перезагрузка модема...\n");
+	send_cmd(cmd_reset,1,replybuf);
+	atcmd("^RESET",replybuf);
 }
 
 //****************************************************
 //* Получение идентификатора устройства
 //****************************************************
-void dev_ident() {
-  
-uint8_t replybuf[100]; 
-uint32_t iolen;
-unsigned char cmd_getproduct[30]={0x45};
+void dev_ident() 
+{
+char	replybuf[100], cmd_getproduct[30]={0x45};
+int	iolen;
 
-iolen=send_cmd(cmd_getproduct,1,replybuf);
-if (iolen>2) printf("\n Идентификатор устройства: %s",replybuf+2); 
+	if ( 2 < (iolen = send_cmd(cmd_getproduct, 1, replybuf)) )
+		fprintf(stdout, "Идентификатор устройства: %s", replybuf + 2); 
 }
 
 
 //****************************************************
 //* Вывод карты файла прошивки
 //****************************************************
-void show_file_map() {
-
+void show_file_map() 
+{
 int i;  
-  
-printf("\n\n ## Смещение  Размер    Сжатие     Имя\n-----------------------------------------------");
-for (i=0;i<npart;i++) { 
-     printf("\n %02i %08x %8i  ",i,ptable[i].offset,ptable[i].hd.psize);
-     if (ptable[i].zflag == 0) 
-       // несжатый раздел
-       printf("           ");
-     else {
-       // сжатый раздел
-       switch(ptable[i].ztype) {
-	 case 'L':
-           printf("Lzma");
-	   break;
-	 case 'Z':  
-           printf("Gzip");
-	   break;
-       }   
-       printf(" %3i%%  ",(ptable[i].hd.psize-ptable[i].zflag)*100/ptable[i].hd.psize);
-     }  
-     printf(" %s",ptable[i].pname); 
-}   
- printf("\n");
- exit(0);
+
+	fprintf(stdout, "\n\n ## Смещение  Размер    Сжатие     Имя\n-----------------------------------------------");
+
+	for (i=0;i<npart;i++) 
+		{ 
+		fprintf(stdout, "%02i %08x %8i  ",i,ptable[i].offset,ptable[i].hd.psize);
+
+		if (ptable[i].zflag == 0) 
+			// несжатый раздел
+			fprintf(stdout, "           ");
+		else    {
+			// сжатый раздел
+			switch(ptable[i].ztype) 
+					{
+				case 'L':
+					fprintf(stdout, "Lzma");
+					break;
+				case 'Z':  
+					fprintf(stdout, "Gzip");
+					break;
+					}   
+
+			fprintf(stdout, " %3i%%  ", (ptable[i].hd.psize-ptable[i].zflag)*100/ptable[i].hd.psize);
+			}  
+
+		fprintf(stdout, " %s", ptable[i].pname); 
+		}   
+
+	fprintf(stdout, "\n");
+	exit(0);
 }
 
 
 //****************************************************
 //* Вывод информации о файле прошивки
 //****************************************************
-void show_fw_info() {
+void	show_fw_info	(void) 
+{
+char	*sptr, ver[36] = {0};
+  
+	if ( ptable[0].hd.version[0] != ':') 
+		fprintf(stdout, "Версия прошивки: %s", ptable[0].hd.version); // нестандартная строка версии
+	else    {
+		// стандартная строка версии
+		strncpy(ver, ptable[0].hd.version, 32);  
 
-uint8_t* sptr; 
-char ver[36];
+		if ( !(sptr = strrchr(ver + 1, ':')) ) // ищем разделитель-двоеточие
+			fprintf(stdout, "Версия прошивки: %s",ver); // не найдено - несоответствие стандарту
+		else    {
+			*sptr = '\0';
+			fprintf(stdout, "Версия прошивки: %s", sptr + 1);
+			fprintf(stdout, "Платформа:       %s", ver + 1);
+			}
+		}  
   
-if (ptable[0].hd.version[0] != ':') printf("\n Версия прошивки: %s",ptable[0].hd.version); // нестандартная строка версии
-else {
-  // стандартная строка версии
-  memset(ver,0,sizeof(ver));  
-  strncpy(ver,ptable[0].hd.version,32);  
-  sptr=strrchr(ver+1,':'); // ищем разделитель-двоеточие
-  if (sptr == 0) printf("\n Версия прошивки: %s",ver); // не найдено - несоответствие стандарту
-  else {
-    *sptr=0;
-    printf("\n Версия прошивки: %s",sptr+1);
-    printf("\n Платформа:       %s",ver+1);
-  }
-}  
-  
-printf("\n Дата сборки:     %s %s",ptable[0].hd.date,ptable[0].hd.time);
-printf("\n Заголовок: версия %i, код соответствия: %8.8s",ptable[0].hd.hdversion,ptable[0].hd.unlock);
+	fprintf(stdout, "Дата сборки:     %s %s", ptable[0].hd.date, ptable[0].hd.time);
+	fprintf(stdout, "Заголовок: версия %i, код соответствия: %8.8s",ptable[0].hd.hdversion, ptable[0].hd.unlock);
 }
-
-
-
-
